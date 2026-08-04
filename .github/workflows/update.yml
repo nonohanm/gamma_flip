@@ -1,15 +1,16 @@
-name: Update GEX Dashboard
+name: Update GEX Data
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # 5분마다 실행 (GitHub 정책상 최소 5분)
-  workflow_dispatch: # 웹에서 수동으로도 실행할 수 있게 해주는 버튼
+    - cron: '*/5 * * * *' # 5분마다 실행
+  workflow_dispatch: # 수동 실행 버튼 허용
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 저장소 파일 쓰기 권한 부여 (필수)
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,12 +20,12 @@ jobs:
         with:
           python-version: '3.10'
 
-
       - name: Install dependencies
         run: |
-          pip install requests pandas plotly
+          python -m pip install --upgrade pip
+          pip install requests pandas
 
-      - name: Run script to generate index.html
+      - name: Run script to generate json data
         run: |
           python main.py
 
@@ -32,5 +33,5 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.io'
-          git add index.html
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update GEX dashboard data" && git push)
+          git add data.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update GEX dashboard data.json" && git push)
