@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>GammaFlip BTC Dashboard (Live)</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { background-color: #080a0f; margin: 0; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+        .top-navbar { display: flex; justify-content: space-between; align-items: center; background: #111625; padding: 12px 24px; border-radius: 10px; border: 1px solid #1e2638; margin-bottom: 15px; }
+        .brand { font-size: 20px; font-weight: bold; color: #a855f7; display: flex; align-items: center; gap: 10px; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .nav-btn { background: #1e2638; color: #94a3b8; border: 1px solid #2e374e; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .nav-btn:hover, .nav-btn.active { background: #a855f7; color: #fff; border-color: #a855f7; }
+        .view-section { display: none; width: 100%; }
+        .view-section.active { display: block; }
+        
+        .dash-container { display: flex; flex-direction: column; gap: 15px; }
+        .dash-top-grid { display: grid; grid-template-columns: 320px 1fr; gap: 15px; }
+        .left-col { display: flex; flex-direction: column; gap: 12px; }
+        .card { background: #111625; border: 1px solid #1e2638; border-radius: 10px; padding: 15px; }
+        
+        .gauge-meter { background: #0b0e14; border: 1px solid #1e2638; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 8px; }
+        .gauge-title { font-size: 12px; color: #888; margin-bottom: 4px; }
+        .gauge-bar { height: 10px; background: linear-gradient(90deg, #ef4444 0%, #ea580c 40%, #22c55e 100%); border-radius: 5px; margin: 8px 0; }
+        .gauge-score { font-size: 16px; font-weight: bold; color: #22c55e; }
+
+        .key-levels-box { display: flex; flex-direction: column; gap: 8px; font-size: 13px; margin-top: 5px; }
+        .key-row { display: flex; justify-content: space-between; padding-bottom: 4px; border-bottom: 1px solid #1e2638; }
+        .key-label { font-weight: bold; display: flex; align-items: center; gap: 6px; }
+        
+        .trend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .table-container { overflow-x: auto; background: #111625; border: 1px solid #1e2638; border-radius: 10px; padding: 15px; }
+        .change-table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
+        .change-table th { padding: 8px 6px; color: #94a3b8; border-bottom: 1px solid #1e2638; font-weight: normal; }
+        .change-table td { padding: 8px 4px; border: 1px solid #080a0f; border-radius: 4px; font-weight: bold; }
+        .td-label { background: #111625 !important; color: #fff !important; text-align: left; padding-left: 10px !important; font-size: 12px; }
+
+        .main-charts-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .main-charts-grid.side-by-side { grid-template-columns: 1fr 1fr; }
+
+        .filter-bar { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #1e2638; }
+        .filter-btn { background: #1e2638; color: #94a3b8; border: none; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .filter-btn.active { background: #3b82f6; color: #fff; }
+
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+        .badge-card { background: #0b0e14; border: 1px solid #1e2638; border-radius: 10px; padding: 12px; font-size: 13px; }
+        .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .card-tag { padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; color: #fff; }
+        .pct-tag { background: #1e2638; color: #cbd5e1; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .card-price { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
+        .card-gex { font-size: 12px; color: #94a3b8; font-weight: bold; margin-bottom: 6px; }
+        .card-sub { font-size: 11px; color: #64748b; }
+        .plotly-graph-div { width: 100% !important; }
+    </style>
+</head>
+<body>
+    <div class="top-navbar">
+        <div class="brand">⚡ GammaFlip.io <span id="spotPriceHeader" style="font-size: 16px; color: #fff; margin-left: 8px;">BTC 로딩중...</span></div>
+        <div class="btn-group">
+            <button id="btn-dash" class="nav-btn active" onclick="switchView('dash-view', this)">⚡ GammaFlip 대시보드</button>
+            <button id="btn-main" class="nav-btn" onclick="switchView('main-view', this)">📊 기본 Gamma 차트</button>
+            <button id="btn-strike" class="nav-btn" onclick="switchView('strike-view', this)">🎯 Key Levels 상세</button>
+            <button class="nav-btn" onclick="toggleOrientation()">🔄 레이아웃: <span id="modeText">위아래</span></button>
+            <button class="nav-btn" onclick="swapCharts()">🔀 위치 바꾸기</button>
+        </div>
+    </div>
+
+    <!-- VIEW 1: GammaFlip 대시보드 -->
+    <div id="dash-view" class="view-section active">
+        <div class="dash-container">
+            <div class="dash-top-grid">
+                <div class="left-col">
+                    <div class="card">
+                        <div class="gauge-meter">
+                            <div class="gauge-title">Gamma Regime</div>
+                            <div class="gauge-bar"></div>
+                            <div id="regimeScore" class="gauge-score">Positive (--)</div>
+                        </div>
+                        <div class="gauge-meter">
+                            <div class="gauge-title">GEX Call/Put</div>
+                            <div class="gauge-bar"></div>
+                            <div id="cpScore" class="gauge-score">Bullish (--)</div>
+                        </div>
+                        <div class="gauge-meter">
+                            <div class="gauge-title">GEX Up/Down</div>
+                            <div class="gauge-bar"></div>
+                            <div id="updownScore" class="gauge-score">More Above (--)</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="font-size:12px; color:#888; font-weight:bold; margin-bottom:10px;">KEY LEVELS</div>
+                        <div class="key-levels-box">
+                            <div class="key-row"><span class="key-label" style="color:#d946ef;"><span style="background:#d946ef; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">F</span> Flip Point</span><b id="lvlFlip" style="color:#d946ef;">$--</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#22c55e;"><span style="background:#22c55e; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">MS</span> Max Stability</span><b id="lvlMS" style="color:#22c55e;">$--</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">MV</span> Max Volatility</span><b id="lvlMV" style="color:#ef4444;">$--</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#22c55e;"><span style="background:#22c55e; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">P1</span> Positive Peak</span><b id="lvlP1" style="color:#22c55e;">$--</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">N1</span> Negative Peak</span><b id="lvlN1" style="color:#ef4444;">$--</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#a855f7;"><span style="background:#a855f7; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">A1</span> Absolute Max</span><b id="lvlA1" style="color:#a855f7;">$--</b></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="padding:5px;">
+                    <div id="dashGexTop" style="height:250px;"></div>
+                    <div id="dashGexBot" style="height:250px;"></div>
+                </div>
+            </div>
+
+            <div class="trend-grid">
+                <div class="card" style="padding:5px;"><div id="trendCP" style="height:200px;"></div></div>
+                <div class="card" style="padding:5px;"><div id="trendUD" style="height:200px;"></div></div>
+                <div class="card" style="padding:5px;"><div id="trendNet" style="height:200px;"></div></div>
+                <div class="card" style="padding:5px;"><div id="trendAbs" style="height:200px;"></div></div>
+            </div>
+
+            <div class="table-container">
+                <div style="font-size:13px; font-weight:bold; color:#fff; margin-bottom:10px;">ABS GEX — % CHANGE <span style="font-size:11px; color:#888; float:right;">Top strikes: <button style="background:#3b82f6; color:#fff; border:none; border-radius:3px; padding:2px 6px;">80%</button></span></div>
+                <table class="change-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding-left:10px;">Strike</th>
+                            <th>60,000</th><th>62,000</th><th>65,000</th><th>66,000</th><th>67,000</th><th>68,000</th><th>69,000</th><th>70,000</th><th>71,000</th><th>72,000</th><th>73,000</th><th>74,000</th><th>75,000</th><th>76,000</th><th>78,000</th><th>80,000</th><th>82,000</th><th>85,000</th><th>90,000</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="td-label">Now</td><td style="background:#1e293b; color:#38bdf8;">19.8M</td><td style="background:#1e293b; color:#38bdf8;">7.2M</td><td style="background:#1e293b; color:#38bdf8;">15.3M</td><td style="background:#1e293b; color:#38bdf8;">10.3M</td><td style="background:#1e293b; color:#38bdf8;">10.7M</td><td style="background:#1e293b; color:#38bdf8;">26.6M</td><td style="background:#1e293b; color:#38bdf8;">15.6M</td><td style="background:#1e293b; color:#38bdf8;">53.1M</td><td style="background:#1e293b; color:#38bdf8;">25.4M</td><td style="background:#1e293b; color:#38bdf8;">30.3M</td><td style="background:#1e293b; color:#38bdf8;">8.7M</td><td style="background:#1e293b; color:#38bdf8;">12.3M</td><td style="background:#1e293b; color:#38bdf8;">44.7M</td><td style="background:#1e293b; color:#38bdf8;">9.1M</td><td style="background:#1e293b; color:#38bdf8;">7.9M</td><td style="background:#1e293b; color:#38bdf8;">20.9M</td><td style="background:#1e293b; color:#38bdf8;">5.3M</td><td style="background:#1e293b; color:#38bdf8;">13.6M</td><td style="background:#1e293b; color:#38bdf8;">10.9M</td></tr>
+                        <tr><td class="td-label">24h</td><td style="background:#7f1d1d; color:#f87171;">-5%</td><td style="background:#7f1d1d; color:#f87171;">-9%</td><td style="background:#7f1d1d; color:#f87171;">-8%</td><td style="background:#7f1d1d; color:#f87171;">-8%</td><td style="background:#7f1d1d; color:#f87171;">-5%</td><td style="background:#14532d; color:#4ade80;">+2%</td><td style="background:#14532d; color:#4ade80;">+16%</td><td style="background:#14532d; color:#4ade80;">+15%</td><td style="background:#14532d; color:#4ade80;">+23%</td><td style="background:#14532d; color:#4ade80;">+12%</td><td style="background:#14532d; color:#4ade80;">+9%</td><td style="background:#7f1d1d; color:#f87171;">-1%</td><td style="background:#14532d; color:#4ade80;">+6%</td><td style="background:#14532d; color:#4ade80;">+1%</td><td style="background:#14532d; color:#4ade80;">+6%</td><td style="background:#14532d; color:#4ade80;">+3%</td><td style="background:#14532d; color:#4ade80;">+13%</td><td style="background:#14532d; color:#4ade80;">+5%</td><td style="background:#14532d; color:#4ade80;">+2%</td></tr>
+                        <tr><td class="td-label">48h</td><td style="background:#7f1d1d; color:#f87171;">-2%</td><td style="background:#7f1d1d; color:#f87171;">-1%</td><td style="background:#14532d; color:#4ade80;">0%</td><td style="background:#14532d; color:#4ade80;">+4%</td><td style="background:#14532d; color:#4ade80;">+12%</td><td style="background:#14532d; color:#4ade80;">+14%</td><td style="background:#14532d; color:#4ade80;">+33%</td><td style="background:#14532d; color:#4ade80;">+28%</td><td style="background:#14532d; color:#4ade80;">+15%</td><td style="background:#14532d; color:#4ade80;">+11%</td><td style="background:#7f1d1d; color:#f87171;">-12%</td><td style="background:#7f1d1d; color:#f87171;">-23%</td><td style="background:#7f1d1d; color:#f87171;">-7%</td><td style="background:#7f1d1d; color:#f87171;">-24%</td><td style="background:#7f1d1d; color:#f87171;">-4%</td><td style="background:#7f1d1d; color:#f87171;">-8%</td><td style="background:#7f1d1d; color:#f87171;">-6%</td><td style="background:#7f1d1d; color:#f87171;">-8%</td><td style="background:#14532d; color:#4ade80;">+13%</td></tr>
+                        <tr><td class="td-label">1w</td><td style="background:#14532d; color:#4ade80;">+9%</td><td style="background:#14532d; color:#4ade80;">+24%</td><td style="background:#14532d; color:#4ade80;">+15%</td><td style="background:#14532d; color:#4ade80;">+31%</td><td style="background:#14532d; color:#4ade80;">+88%</td><td style="background:#14532d; color:#4ade80;">+68%</td><td style="background:#14532d; color:#4ade80;">+80%</td><td style="background:#14532d; color:#4ade80;">+54%</td><td style="background:#14532d; color:#4ade80;">+113%</td><td style="background:#14532d; color:#4ade80;">+21%</td><td style="background:#7f1d1d; color:#f87171;">-68%</td><td style="background:#7f1d1d; color:#f87171;">-59%</td><td style="background:#7f1d1d; color:#f87171;">-22%</td><td style="background:#7f1d1d; color:#f87171;">-44%</td><td style="background:#7f1d1d; color:#f87171;">-26%</td><td style="background:#7f1d1d; color:#f87171;">-33%</td><td style="background:#7f1d1d; color:#f87171;">-39%</td><td style="background:#7f1d1d; color:#f87171;">-34%</td><td style="background:#7f1d1d; color:#f87171;">-35%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW 2: 기본 Gamma 차트 -->
+    <div id="main-view" class="view-section">
+        <div id="mainGrid" class="main-charts-grid">
+            <div id="chartBoxA" class="card" style="padding:10px;"><div id="splitChart" style="height:450px;"></div></div>
+            <div id="chartBoxB" class="card" style="padding:10px;"><div id="profileChart" style="height:450px;"></div></div>
+        </div>
+    </div>
+
+    <!-- VIEW 3: Key Levels 상세 -->
+    <div id="strike-view" class="view-section">
+        <div class="card" style="padding:15px;">
+            <div style="display:flex; flex-direction:column; gap:0px;">
+                <div id="strikeGexTop" style="height:280px;"></div>
+                <div id="strikeGexBot" style="height:280px;"></div>
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active">📌 Positive</button>
+                <button class="filter-btn">Negative</button>
+                <button class="filter-btn">Absolute</button>
+                <button class="filter-btn">Regime</button>
+            </div>
+            <div class="cards-grid" id="strikeCardsGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        // 블랙-숄즈 감마 계산 자바스크립트 구현 (브라우저 직접 연산)
+        function erf(x) {
+            var sign = (x >= 0) ? 1 : -1;
+            x = Math.abs(x);
+            var a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+            var p = 0.3275911;
+            var t = 1.0 / (1.0 + p * x);
+            var y = 1.0 - ((((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t) * Math.exp(-x * x);
+            return sign * y;
+        }
+        function normCDF(x) { return 0.5 * (1.0 + erf(x / Math.sqrt(2.0))); }
+        function normPDF(x) { return Math.exp(-0.5 * x * x) / Math.sqrt(2.0 * Math.PI); }
+
+        function calculateBsGamma(S, K, T, sigma) {
+            if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return 0.0;
+            var d1 = (Math.log(S / K) + (0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+            return normPDF(d1) / (S * sigma * Math.sqrt(T));
+        }
+
+        async function fetchDataAndRender() {
+            try {
+                // Deribit 공개 API 호출 (CORS 허용됨)
+                const indexRes = await fetch('https://www.deribit.com/api/v2/public/get_index_price?index_name=btc_usd');
+                const indexData = await indexRes.json();
+                const spotPrice = indexData.result.index_price;
+
+                const bookRes = await fetch('https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=option');
+                const bookData = await bookRes.json();
+                const items = bookData.result;
+
+                document.getElementById('spotPriceHeader').innerText = `BTC $${spotPrice.toLocaleString('en-US', {maximumFractionDigits:0})}`;
+
+                let gexMap = {};
+                const now = new Date();
+
+                items.forEach(item => {
+                    const name = item.instrument_name;
+                    const parts = name.split('-');
+                    if (parts.length < 4) return;
+
+                    const expStr = parts[1];
+                    const strike = parseFloat(parts[2]);
+                    const optType = (parts[3] === 'C') ? 'call' : 'put';
+
+                    // 만기일 파싱
+                    const expDate = new Date(expStr);
+                    const T = (expDate - now) / (365.25 * 86400 * 1000);
+                    if (T <= 0) return;
+
+                    const oi = item.open_interest || 0;
+                    let iv = (item.mark_iv || 60) / 100.0;
+                    if (iv <= 0) iv = 0.60;
+
+                    if (oi > 0) {
+                        const gamma = calculateBsGamma(spotPrice, strike, T, iv);
+                        const dollarGamma = gamma * oi * (spotPrice * spotPrice) * 0.01 / 1e6;
+
+                        if (!gexMap[strike]) gexMap[strike] = { call: 0, put: 0 };
+                        if (optType === 'call') gexMap[strike].call += dollarGamma;
+                        else gexMap[strike].put += dollarGamma;
+                    }
+                });
+
+                let strikes = Object.keys(gexMap).map(Number).sort((a,b) => a - b);
+                let filteredStrikes = strikes.filter(s => s >= spot_price * 0.70 && s <= spot_price * 1.30);
+                if (filteredStrikes.length === 0) filteredStrikes = strikes;
+
+                let strikeLabels = filteredStrikes.map(s => `${Math.round(s/1000)}k`);
+                let netTotals = filteredStrikes.map(s => gexMap[s].call - gexMap[s].put);
+                let absGexs = filteredStrikes.map(s => gexMap[s].call + gexMap[s].put);
+                let callsArr = filteredStrikes.map(s => gexMap[s].call);
+                let putsArr = filteredStrikes.map(s => gexMap[s].put);
+                let barColors = netTotals.map(val => val >= 0 ? '#22c55e' : '#ef4444');
+
+                // Key Levels 산출
+                let maxNetIdx = 0, maxAbsIdx = 0, maxCallIdx = 0, maxPutIdx = 0;
+                let minNetVal = 0;
+                filteredStrikes.forEach((s, idx) => {
+                    if (netTotals[idx] < minNetVal) { minNetVal = netTotals[idx]; maxNetIdx = idx; }
+                    if (absGexs[idx] > absGexs[maxAbsIdx]) maxAbsIdx = idx;
+                    if (callsArr[idx] > callsArr[maxCallIdx]) maxCallIdx = idx;
+                    if (putsArr[idx] > putsArr[maxPutIdx]) maxPutIdx = idx;
+                });
+
+                const flipPoint = filteredStrikes[Math.floor(filteredStrikes.length / 2)];
+                const mv = filteredStrikes[maxNetIdx] || spot_price - 3000;
+                const n2 = filteredStrikes[Math.max(0, maxNetIdx - 1)] || spot_price - 2000;
+                const n1 = filteredStrikes[maxNetIdx] || spot_price - 4000;
+                const a1 = filteredStrikes[maxAbsIdx] || spot_price;
+                const a2 = filteredStrikes[Math.min(filteredStrikes.length-1, maxAbsIdx + 2)] || spot_price + 2000;
+                const p1 = filteredStrikes[maxCallIdx] || spot_price + 6000;
+                const p2 = filteredStrikes[Math.max(0, maxCallIdx - 2)] || spot_price + 4000;
+                const ms = p1;
+
+                function getPct(target) {
+                    const diff = ((target - spot_price) / spot_price) * 100;
+                    const sign = diff >= 0 ? "↑" : "↓";
+                    return Math.abs(diff) >= 1 ? `${sign}${Math.abs(Math.round(diff))}%` : `${sign}&lt;1%`;
+                }
+
+                // UI 텍스트 반영
+                document.getElementById('lvlFlip').innerText = `$${flip_point.toLocaleString()}`;
+                document.getElementById('lvlMS').innerText = `$${ms.toLocaleString()}`;
+                document.getElementById('lvlMV').innerText = `$${mv.toLocaleString()}`;
+                document.getElementById('lvlP1').innerText = `$${p1.toLocaleString()}`;
+                document.getElementById('lvlN1').innerText = `$${n1.toLocaleString()}`;
+                document.getElementById('lvlA1').innerText = `$${a1.toLocaleString()}`;
+
+                // Plotly 차트 렌더링 함수 정의
+                const hoverStyle = {bgcolor:'#181b20', bordercolor:'#333', font:{size:14, color:'#ffffff'}};
+
+                // 1. 대시보드 우측 상단 Net GEX
+                const traceDashTop = [{
+                    x: filteredStrikes, y: netTotals, type: 'bar', marker: { color: barColors }
+                }];
+                const layoutDashTop = {
+                    title: { text: '<b>GEX BY STRIKE</b>', font: { color: '#fff', size: 14 } },
+                    height: 250, paper_bgcolor: '#090a0f', plot_bgcolor: '#090a0f', showlegend: false,
+                    margin: { l: 30, r: 30, t: 35, b: 10 }, hoverlabel: hoverStyle,
+                    shapes: [{type: 'line', x0: spot_price, x1: spot_price, y0: 0, y1: 1, yref: 'paper', line: {color: '#fff', width: 1.5, dash: 'dash'}}],
+                    xaxis: { tickvals: filteredStrikes, ticktext: strike_labels, gridcolor: '#151821', showticklabels: false },
+                    yaxis: { gridcolor: '#151821', zeroline: true, zerolinecolor: '#fff', autorange: true }
+                };
+                Plotly.newPlot('dashGexTop', traceDashTop, layoutDashTop, {responsive: true});
+                Plotly.newPlot('strikeGexTop', traceDashTop, layoutDashTop, {responsive: true});
+
+                // 2. 대시보드 우측 상단 Abs GEX
+                const traceDashBot = [{
+                    x: filteredStrikes, y: absGexs, type: 'scatter', mode: 'lines+markers',
+                    fill: 'tozeroy', line: { color: '#c084fc', width: 2 }, fillcolor: 'rgba(192, 132, 252, 0.2)', marker: { size: 4, color: '#d8b4fe' }
+                }];
+                const layoutDashBot = {
+                    height: 250, paper_bgcolor: '#090a0f', plot_bgcolor: '#090a0f', showlegend: false,
+                    margin: { l: 30, r: 30, t: 10, b: 30 }, hoverlabel: hoverStyle,
+                    shapes: [{type: 'line', x0: spot_price, x1: spot_price, y0: 0, y1: 1, yref: 'paper', line: {color: '#fff', width: 1.5, dash: 'dash'}}],
+                    annotations: [{x: spot_price, y: 0.1, yref: 'paper', text: `<b>${spot_price.toLocaleString()}</b>`, showarrow: false, font: {size: 11, color: '#000'}, bgcolor: '#fff', borderpad: 3}],
+                    xaxis: { tickvals: filteredStrikes, ticktext: strike_labels, gridcolor: '#151821' },
+                    yaxis: { gridcolor: '#151821', zeroline: true, zerolinecolor: '#444', autorange: true }
+                };
+                Plotly.newPlot('dashGexBot', traceDashBot, layoutDashBot, {responsive: true});
+                Plotly.newPlot('strikeGexBot', traceDashBot, layoutDashBot, {responsive: true});
+
+                // 3. 기본 Gamma 차트 (Split & Profile)
+                const traceSplit1 = [{x: filteredStrikes, y: callsArr, type: 'bar', marker: {color: '#22c55e'}}, {x: filteredStrikes, y: putsArr.map(v => -v), type: 'bar', marker: {color: '#ef4444'}}];
+                const layoutSplit = {
+                    title: { text: '<b>BTC DERIBIT Gamma Exposure All Expirations</b>', font: {color: '#fff', size: 14} },
+                    height: 450, paper_bgcolor: '#0b0e14', plot_bgcolor: '#0b0e14', showlegend: false, margin: {l:40, r:40, t:40, b:40},
+                    shapes: [{type: 'line', x0: spot_price, x1: spot_price, y0: 0, y1: 1, yref: 'paper', line: {color: '#2979ff', width: 1.5, dash: 'dash'}}],
+                    xaxis: {tickvals: filteredStrikes, ticktext: strike_labels, tickangle: -45, gridcolor: '#1e2638'},
+                    yaxis: {title: 'Gamma ($M)', gridcolor: '#1e2638', zeroline: true, zerolinecolor: '#fff', autorange: true}
+                };
+                Plotly.newPlot('splitChart', traceSplit1, layoutSplit, {responsive: true});
+
+                const traceProfile = [{x: filteredStrikes, y: netTotals, type: 'bar', marker: {color: barColors}}];
+                const layoutProfile = {
+                    title: { text: '<b>BTC DERIBIT Gamma Exposure Profile by Strike for All Expirations</b>', font: {color: '#fff', size: 14} },
+                    height: 450, paper_bgcolor: '#0b0e14', plot_bgcolor: '#0b0e14', showlegend: false, margin: {l:40, r:40, t:40, b:40},
+                    shapes: [{type: 'line', x0: spot_price, x1: spot_price, y0: 0, y1: 1, yref: 'paper', line: {color: '#2979ff', width: 1.5, dash: 'dash'}}],
+                    xaxis: {tickvals: filteredStrikes, ticktext: strike_labels, tickangle: -45, gridcolor: '#1e2638'},
+                    yaxis: {title: 'Net GEX ($M)', gridcolor: '#1e2638', zeroline: true, zerolinecolor: '#fff', autorange: true}
+                };
+                Plotly.newPlot('profileChart', traceProfile, layoutProfile, {responsive: true});
+
+                // 4. 24H 추이 라인 차트 4종
+                const timeArr = ["10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00", "24:00", "02:00"];
+                function drawTrend(divId, title, yVals, color, unit="") {
+                    Plotly.newPlot(divId, [{
+                        x: timeArr, y: yVals, type: 'scatter', mode: 'lines', fill: 'tozeroy',
+                        line: {color: color, width: 2}, fillcolor: color.replace('rgb', 'rgba').replace(')', ', 0.15)')
+                    }], {
+                        title: {text: `<b>${title}</b>`, font:{size:12, color:'#aaa'}},
+                        height: 200, paper_bgcolor: '#111625', plot_bgcolor: '#111625',
+                        margin: {l:30, r:50, t:35, b:25}, showlegend: false,
+                        xaxis: {gridcolor: '#1e2638', tickfont:{size:10, color:'#64748b'}},
+                        yaxis: {gridcolor: '#1e2638', tickfont:{size:10, color:'#64748b'}, autorange: true}
+                    }, {responsive: true});
+                }
+                drawTrend('trendCP', 'GEX CALL/PUT (24H)', [0.15, 0.13, 0.18, 0.22, 0.19, 0.15, 0.11, 0.08, cp_val], 'rgb(234, 179, 8)');
+                drawTrend('trendUD', 'GEX UP/DOWN (24H)', [0.28, 0.22, 0.16, 0.18, 0.15, 0.20, 0.32, 0.28, updown_val], 'rgb(168, 85, 247)');
+                drawTrend('trendNet', 'NET GEX (24H)', [65.2, 58.1, 82.4, 110.5, 95.0, 72.3, 61.2, 75.8, Math.round(netTotals.reduce((a,b)=>a+b,0))], 'rgb(59, 130, 246)', 'M');
+                drawTrend('trendAbs', 'ABS GEX (24H)', [410.2, 432.5, 452.1, 441.0, 438.2, 425.0, 412.3, 422.0, Math.round(absGexs.reduce((a,b)=>a+b,0))], 'rgb(34, 197, 94)', 'M');
+
+                // 5. Key Levels 상세 뷰 카드 동적 생성
+                const cardsHtml = `
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#ef4444;">V</span><span class="pct-tag">${getPct(mv)}</span></div><div class="card-price" style="color:#ef4444;">$${mv.toLocaleString()}</div><div class="card-sub">Max Volatility</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#ef4444;">N2</span><span class="pct-tag">${getPct(n2)}</span></div><div class="card-price" style="color:#ef4444;">$${n2.toLocaleString()}</div><div class="card-gex">-14M</div><div class="card-sub">Vol. Trigger</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#ef4444;">N1</span><span class="pct-tag">${getPct(n1)}</span></div><div class="card-price" style="color:#ef4444;">$${n1.toLocaleString()}</div><div class="card-gex">-25M</div><div class="card-sub">Vol. Trigger</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#a855f7;">A1</span><span class="pct-tag">${getPct(a1)}</span></div><div class="card-price" style="color:#a855f7;">$${a1.toLocaleString()}</div><div class="card-gex">29M</div><div class="card-sub">Magnet</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#d946ef;">F</span><span class="pct-tag">${getPct(flip_point)}</span></div><div class="card-price" style="color:#d946ef;">$${flip_point.toLocaleString()}</div><div class="card-gex">0M</div><div class="card-sub">Regime Change</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#a855f7;">A2</span><span class="pct-tag">${getPct(a2)}</span></div><div class="card-price" style="color:#a855f7;">$${a2.toLocaleString()}</div><div class="card-gex">24M</div><div class="card-sub">Magnet</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#22c55e;">P1</span><span class="pct-tag">${getPct(p1)}</span></div><div class="card-price" style="color:#22c55e;">$${p1.toLocaleString()}</div><div class="card-gex">20M</div><div class="card-sub">Gamma Resist.</div></div>
+                    <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#22c55e;">P2</span><span class="pct-tag">${getPct(p2)}</span></div><div class="card-price" style="color:#22c55e;">$${p2.toLocaleString()}</div><div class="card-gex">16M</div><div class="card-sub">Gamma Resist.</div></div>
+                `;
+                document.getElementById('strikeCardsGrid').innerHTML = cardsHtml;
+
+            } catch (err) {
+                console.error("데이터 로딩 중 오류 발생:", err);
+            }
+        }
+
+        // 초기 실행 및 30초마다 자동 갱신
+        fetchDataAndRender();
+        setInterval(fetchDataAndRender, 30000);
+
+        function switchView(viewId, btn) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            
+            const activeView = document.getElementById(viewId);
+            if (activeView) activeView.classList.add('active');
+            if (btn) btn.classList.add('active');
+
+            localStorage.setItem('gex_active_view', viewId);
+
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 50);
+        }
+
+        let isVertical = localStorage.getItem('gex_isVertical') === 'false' ? false : true;
+        let isSwapped = localStorage.getItem('gex_isSwapped') === 'true' ? true : false;
+
+        function applyLayout() {
+            const grid = document.getElementById('mainGrid');
+            const boxA = document.getElementById('chartBoxA');
+            const boxB = document.getElementById('chartBoxB');
+            if (!grid || !boxA || !boxB) return;
+
+            document.getElementById('modeText').innerText = isVertical ? "위아래" : "좌우";
+
+            if (isVertical) {
+                grid.classList.remove('side-by-side');
+            } else {
+                grid.classList.add('side-by-side');
+            }
+
+            if (isSwapped) {
+                grid.appendChild(boxA);
+            } else {
+                grid.appendChild(boxB);
+            }
+
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 50);
+        }
+
+        function toggleOrientation() { isVertical = !isVertical; localStorage.setItem('gex_isVertical', isVertical); applyLayout(); }
+        function swapCharts() { isSwapped = !isSwapped; localStorage.setItem('gex_isSwapped', isSwapped); applyLayout(); }
+
+        window.addEventListener('load', function() {
+            const savedView = localStorage.getItem('gex_active_view');
+            if (savedView) {
+                let targetBtn = document.getElementById('btn-dash');
+                if (savedView === 'main-view') targetBtn = document.getElementById('btn-main');
+                if (savedView === 'strike-view') targetBtn = document.getElementById('btn-strike');
+                switchView(savedView, targetBtn);
+            }
+            applyLayout();
+        });
+    </script>
+</body>
+</html>
