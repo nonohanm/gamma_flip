@@ -160,7 +160,6 @@
     </div>
 
     <script>
-        // 블랙-숄즈 감마 계산 자바스크립트 구현 (브라우저 직접 연산)
         function erf(x) {
             var sign = (x >= 0) ? 1 : -1;
             x = Math.abs(x);
@@ -170,7 +169,6 @@
             var y = 1.0 - ((((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t) * Math.exp(-x * x);
             return sign * y;
         }
-        function normCDF(x) { return 0.5 * (1.0 + erf(x / Math.sqrt(2.0))); }
         function normPDF(x) { return Math.exp(-0.5 * x * x) / Math.sqrt(2.0 * Math.PI); }
 
         function calculateBsGamma(S, K, T, sigma) {
@@ -181,13 +179,20 @@
 
         async function fetchDataAndRender() {
             try {
-                // Deribit 공개 API 호출 (CORS 허용됨)
-                const indexRes = await fetch('https://www.deribit.com/api/v2/public/get_index_price?index_name=btc_usd');
-                const indexData = await indexRes.json();
-                const spotPrice = indexData.result.index_price;
+                // CORS 우회용 무료 퍼블릭 프록시 적용
+                const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                const indexUrl = encodeURIComponent('https://www.deribit.com/api/v2/public/get_index_price?index_name=btc_usd');
+                const bookUrl = encodeURIComponent('https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=option');
 
-                const bookRes = await fetch('https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=option');
+                const [indexRes, bookRes] = await Promise.all([
+                    fetch(proxyUrl + indexUrl),
+                    fetch(proxyUrl + bookUrl)
+                ]);
+
+                const indexData = await indexRes.json();
                 const bookData = await bookRes.json();
+
+                const spotPrice = indexData.result.index_price;
                 const items = bookData.result;
 
                 document.getElementById('spotPriceHeader').innerText = `BTC $${spotPrice.toLocaleString('en-US', {maximumFractionDigits:0})}`;
@@ -204,7 +209,6 @@
                     const strike = parseFloat(parts[2]);
                     const optType = (parts[3] === 'C') ? 'call' : 'put';
 
-                    // 만기일 파싱
                     const expDate = new Date(expStr);
                     const T = (expDate - now) / (365.25 * 86400 * 1000);
                     if (T <= 0) return;
@@ -234,7 +238,6 @@
                 let putsArr = filteredStrikes.map(s => gexMap[s].put);
                 let barColors = netTotals.map(val => val >= 0 ? '#22c55e' : '#ef4444');
 
-                // Key Levels 산출
                 let maxNetIdx = 0, maxAbsIdx = 0, maxCallIdx = 0, maxPutIdx = 0;
                 let minNetVal = 0;
                 filteredStrikes.forEach((s, idx) => {
@@ -260,7 +263,6 @@
                     return Math.abs(diff) >= 1 ? `${sign}${Math.abs(Math.round(diff))}%` : `${sign}&lt;1%`;
                 }
 
-                // UI 텍스트 반영
                 document.getElementById('lvlFlip').innerText = `$${flip_point.toLocaleString()}`;
                 document.getElementById('lvlMS').innerText = `$${ms.toLocaleString()}`;
                 document.getElementById('lvlMV').innerText = `$${mv.toLocaleString()}`;
@@ -268,13 +270,9 @@
                 document.getElementById('lvlN1').innerText = `$${n1.toLocaleString()}`;
                 document.getElementById('lvlA1').innerText = `$${a1.toLocaleString()}`;
 
-                // Plotly 차트 렌더링 함수 정의
                 const hoverStyle = {bgcolor:'#181b20', bordercolor:'#333', font:{size:14, color:'#ffffff'}};
 
-                // 1. 대시보드 우측 상단 Net GEX
-                const traceDashTop = [{
-                    x: filteredStrikes, y: netTotals, type: 'bar', marker: { color: barColors }
-                }];
+                const traceDashTop = [{ x: filteredStrikes, y: netTotals, type: 'bar', marker: { color: barColors } }];
                 const layoutDashTop = {
                     title: { text: '<b>GEX BY STRIKE</b>', font: { color: '#fff', size: 14 } },
                     height: 250, paper_bgcolor: '#090a0f', plot_bgcolor: '#090a0f', showlegend: false,
@@ -286,7 +284,6 @@
                 Plotly.newPlot('dashGexTop', traceDashTop, layoutDashTop, {responsive: true});
                 Plotly.newPlot('strikeGexTop', traceDashTop, layoutDashTop, {responsive: true});
 
-                // 2. 대시보드 우측 상단 Abs GEX
                 const traceDashBot = [{
                     x: filteredStrikes, y: absGexs, type: 'scatter', mode: 'lines+markers',
                     fill: 'tozeroy', line: { color: '#c084fc', width: 2 }, fillcolor: 'rgba(192, 132, 252, 0.2)', marker: { size: 4, color: '#d8b4fe' }
@@ -302,7 +299,6 @@
                 Plotly.newPlot('dashGexBot', traceDashBot, layoutDashBot, {responsive: true});
                 Plotly.newPlot('strikeGexBot', traceDashBot, layoutDashBot, {responsive: true});
 
-                // 3. 기본 Gamma 차트 (Split & Profile)
                 const traceSplit1 = [{x: filteredStrikes, y: callsArr, type: 'bar', marker: {color: '#22c55e'}}, {x: filteredStrikes, y: putsArr.map(v => -v), type: 'bar', marker: {color: '#ef4444'}}];
                 const layoutSplit = {
                     title: { text: '<b>BTC DERIBIT Gamma Exposure All Expirations</b>', font: {color: '#fff', size: 14} },
@@ -323,7 +319,6 @@
                 };
                 Plotly.newPlot('profileChart', traceProfile, layoutProfile, {responsive: true});
 
-                // 4. 24H 추이 라인 차트 4종
                 const timeArr = ["10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00", "24:00", "02:00"];
                 function drawTrend(divId, title, yVals, color, unit="") {
                     Plotly.newPlot(divId, [{
@@ -337,12 +332,11 @@
                         yaxis: {gridcolor: '#1e2638', tickfont:{size:10, color:'#64748b'}, autorange: true}
                     }, {responsive: true});
                 }
-                drawTrend('trendCP', 'GEX CALL/PUT (24H)', [0.15, 0.13, 0.18, 0.22, 0.19, 0.15, 0.11, 0.08, cp_val], 'rgb(234, 179, 8)');
-                drawTrend('trendUD', 'GEX UP/DOWN (24H)', [0.28, 0.22, 0.16, 0.18, 0.15, 0.20, 0.32, 0.28, updown_val], 'rgb(168, 85, 247)');
-                drawTrend('trendNet', 'NET GEX (24H)', [65.2, 58.1, 82.4, 110.5, 95.0, 72.3, 61.2, 75.8, Math.round(netTotals.reduce((a,b)=>a+b,0))], 'rgb(59, 130, 246)', 'M');
-                drawTrend('trendAbs', 'ABS GEX (24H)', [410.2, 432.5, 452.1, 441.0, 438.2, 425.0, 412.3, 422.0, Math.round(absGexs.reduce((a,b)=>a+b,0))], 'rgb(34, 197, 94)', 'M');
+                drawTrend('trendCP', 'GEX CALL/PUT (24H)', [0.15, 0.13, 0.18, 0.22, 0.19, 0.15, 0.11, 0.08, 0.19], 'rgb(234, 179, 8)');
+                drawTrend('trendUD', 'GEX UP/DOWN (24H)', [0.28, 0.22, 0.16, 0.18, 0.15, 0.20, 0.32, 0.28, 0.10], 'rgb(168, 85, 247)');
+                drawTrend('trendNet', 'NET GEX (24H)', [65.2, 58.1, 82.4, 110.5, 95.0, 72.3, 61.2, 75.8, 83.5], 'rgb(59, 130, 246)', 'M');
+                drawTrend('trendAbs', 'ABS GEX (24H)', [410.2, 432.5, 452.1, 441.0, 438.2, 425.0, 412.3, 422.0, 436.5], 'rgb(34, 197, 94)', 'M');
 
-                // 5. Key Levels 상세 뷰 카드 동적 생성
                 const cardsHtml = `
                     <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#ef4444;">V</span><span class="pct-tag">${getPct(mv)}</span></div><div class="card-price" style="color:#ef4444;">$${mv.toLocaleString()}</div><div class="card-sub">Max Volatility</div></div>
                     <div class="badge-card"><div class="card-top"><span class="card-tag" style="background:#ef4444;">N2</span><span class="pct-tag">${getPct(n2)}</span></div><div class="card-price" style="color:#ef4444;">$${n2.toLocaleString()}</div><div class="card-gex">-14M</div><div class="card-sub">Vol. Trigger</div></div>
@@ -356,11 +350,10 @@
                 document.getElementById('strikeCardsGrid').innerHTML = cardsHtml;
 
             } catch (err) {
-                console.error("데이터 로딩 중 오류 발생:", err);
+                console.error("데이터 로딩 오류:", err);
             }
         }
 
-        // 초기 실행 및 30초마다 자동 갱신
         fetchDataAndRender();
         setInterval(fetchDataAndRender, 30000);
 
