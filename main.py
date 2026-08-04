@@ -80,13 +80,17 @@ def generate_gamma_chart():
     a2 = float(filtered.sort_values('abs_gex', ascending=False)['strike'].iloc[1]) if len(filtered) > 1 else a1
     ms, mv = p1, n1
 
-    # 안전한 GEX 변수 추출
-    gex_n1 = filtered[filtered['strike'] == n1]['gex_put'].values[0] if len(filtered[filtered['strike'] == n1]) > 0 else 0
-    gex_n2 = filtered[filtered['strike'] == n2]['gex_put'].values[0] if len(filtered[filtered['strike'] == n2]) > 0 else 0
-    gex_a1 = filtered[filtered['strike'] == a1]['abs_gex'].values[0] if len(filtered[filtered['strike'] == a1]) > 0 else 0
-    gex_a2 = filtered[filtered['strike'] == a2]['abs_gex'].values[0] if len(filtered[filtered['strike'] == a2]) > 0 else 0
-    gex_p1 = filtered[filtered['strike'] == p1]['gex_call'].values[0] if len(filtered[filtered['strike'] == p1]) > 0 else 0
-    gex_p2 = filtered[filtered['strike'] == p2]['gex_call'].values[0] if len(filtered[filtered['strike'] == p2]) > 0 else 0
+    # 안전한 GEX 변수들 선언
+    def safe_gex(strike_val, col_name):
+        res = filtered[filtered['strike'] == strike_val][col_name]
+        return float(res.values[0]) if not res.empty else 0.0
+
+    gex_n1 = safe_gex(n1, 'gex_put')
+    gex_n2 = safe_gex(n2, 'gex_put')
+    gex_a1 = safe_gex(a1, 'abs_gex')
+    gex_a2 = safe_gex(a2, 'abs_gex')
+    gex_p1 = safe_gex(p1, 'gex_call')
+    gex_p2 = safe_gex(p2, 'gex_call')
 
     def get_pct(target):
         diff = ((target - spot_price) / spot_price) * 100
@@ -312,7 +316,7 @@ def generate_gamma_chart():
                             <div class="key-row"><span class="key-label" style="color:#22c55e;"><span style="background:#22c55e; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">MS</span> Max Stability</span><b style="color:#22c55e;">${ms:,.0f}</b></div>
                             <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">MV</span> Max Volatility</span><b style="color:#ef4444;">${mv:,.0f}</b></div>
                             <div class="key-row"><span class="key-label" style="color:#22c55e;"><span style="background:#22c55e; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">P1</span> Positive Peak</span><b style="color:#22c55e;">${p1:,.0f}</b></div>
-                            <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">N1</span> Negative Peak</span><b style="color:#ef4444;">${n1:,.0f}</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">N1</span> Negative Peak</span><b style="color:#ef4444;">${n1:,.0f}</b></div>
                             <div class="key-row"><span class="key-label" style="color:#a855f7;"><span style="background:#a855f7; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">A1</span> Absolute Max</span><b style="color:#a855f7;">${a1:,.0f}</b></div>
                         </div>
                     </div>
@@ -429,7 +433,6 @@ def generate_gamma_chart():
         </div>
     </div>
 
-    <!-- 💡 핵심: 30초마다 자동 새로고침 및 사용자 탭 상태(localStorage) 복원 스크립트 -->
     <script>
         setTimeout(function() {{
             location.reload();
@@ -502,7 +505,7 @@ def generate_gamma_chart():
     with open(output_filepath, 'w', encoding='utf-8') as f:
         f.write(full_page_html)
         
-    print(f"✅ [{current_time_str}] index.html 갱신 완료! (GitHub Actions 대응 정적 배포본 생성)")
+    print(f"✅ [{current_time_str}] index.html 갱신 완료!")
 
 if __name__ == '__main__':
     generate_gamma_chart()
