@@ -2,14 +2,14 @@ name: Update GEX Data
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # 5분마다 실행
-  workflow_dispatch: # 수동 실행 버튼 허용
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # 💡 깃허브 저장소 쓰기 권한 부여
 
     steps:
       - name: Checkout repository
@@ -29,9 +29,11 @@ jobs:
         run: |
           python main.py
 
-      - name: Commit and push if changed
+      - name: Force commit and push data.json
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.io'
           git add data.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update GEX dashboard data.json" && git push)
+          # 강제로 커밋 및 푸시하도록 조건문 수정
+          git commit -m "Auto-update GEX dashboard data.json" || echo "No changes to commit"
+          git push
