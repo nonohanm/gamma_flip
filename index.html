@@ -1,1 +1,62 @@
-ㅇㅇ
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>GammaFlip BTC Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { background-color: #080a0f; margin: 0; padding: 20px; font-family: sans-serif; color: #fff; text-align: center; }
+        .card { background: #111625; border: 1px solid #1e2638; border-radius: 10px; padding: 20px; margin: 20px auto; max-width: 800px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2 id="title">⚡ GammaFlip BTC 대시보드</h2>
+        <p id="sub-title">데이터 불러오는 중...</p>
+    </div>
+
+    <div class="card">
+        <div id="chart"></div>
+    </div>
+
+    <script>
+        async function loadDashboardData() {
+            try {
+                // 둥둥 떠 있는 data.json 파일을 가져옴 (캐시 방지를 위해 타임스탬프 추가)
+                let response = await fetch('./data.json?t=' + new Date().getTime());
+                let data = await response.json();
+
+                document.getElementById('sub-titleinnerText').innerText = `갱신 시간: ${data.updated_at} | BTC: $${data.spot_price.toLocaleString()}`;
+
+                // Plotly 차트 그리기
+                let trace = {
+                    x: data.strikes,
+                    y: data.net_gex,
+                    type: 'bar',
+                    marker: { color: data.net_gex.map(v => v >= 0 ? '#22c55e' : '#ef4444') }
+                };
+
+                let layout = {
+                    paper_bgcolor: '#111625',
+                    plot_bgcolor: '#111625',
+                    font: { color: '#fff' },
+                    xaxis: { title: 'Strike Price', gridcolor: '#1e2638' },
+                    yaxis: { title: 'Net Gamma ($M)', gridcolor: '#1e2638', zeroline: true },
+                    margin: { t: 20, b: 40, l: 50, r: 20 }
+                };
+
+                Plotly.newPlot('chart', [trace], layout);
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('sub-title').innerText = "데이터를 불러오는 중입니다...";
+            }
+        }
+
+        // 최초 실행 및 30초마다 데이터 갱신 리로드
+        loadDashboardData();
+        setInterval(loadDashboardData, 30000);
+    </script>
+</body>
+</html>
