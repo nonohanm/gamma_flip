@@ -3,7 +3,6 @@ import math
 import requests
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import datetime, timezone
 
 def norm_pdf(x):
@@ -80,6 +79,14 @@ def generate_gamma_chart():
     a1 = float(filtered.sort_values('abs_gex', ascending=False)['strike'].iloc[0])
     a2 = float(filtered.sort_values('abs_gex', ascending=False)['strike'].iloc[1]) if len(filtered) > 1 else a1
     ms, mv = p1, n1
+
+    # 안전한 GEX 변수 추출
+    gex_n1 = filtered[filtered['strike'] == n1]['gex_put'].values[0] if len(filtered[filtered['strike'] == n1]) > 0 else 0
+    gex_n2 = filtered[filtered['strike'] == n2]['gex_put'].values[0] if len(filtered[filtered['strike'] == n2]) > 0 else 0
+    gex_a1 = filtered[filtered['strike'] == a1]['abs_gex'].values[0] if len(filtered[filtered['strike'] == a1]) > 0 else 0
+    gex_a2 = filtered[filtered['strike'] == a2]['abs_gex'].values[0] if len(filtered[filtered['strike'] == a2]) > 0 else 0
+    gex_p1 = filtered[filtered['strike'] == p1]['gex_call'].values[0] if len(filtered[filtered['strike'] == p1]) > 0 else 0
+    gex_p2 = filtered[filtered['strike'] == p2]['gex_call'].values[0] if len(filtered[filtered['strike'] == p2]) > 0 else 0
 
     def get_pct(target):
         diff = ((target - spot_price) / spot_price) * 100
