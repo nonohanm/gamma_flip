@@ -80,17 +80,17 @@ def generate_gamma_chart():
     a2 = float(filtered.sort_values('abs_gex', ascending=False)['strike'].iloc[1]) if len(filtered) > 1 else a1
     ms, mv = p1, n1
 
-    # 철저하게 방어적으로 변수 선언 (NameError 원천 차단)
-    def get_gex_val(strike_val, col):
+    # 🛡️ 방어적 변수 선언 (NameError 원천 방지)
+    def get_val(strike_val, col):
         res = filtered[filtered['strike'] == strike_val][col]
         return float(res.values[0]) if not res.empty else 0.0
 
-    gex_n1 = get_gex_val(n1, 'gex_put')
-    gex_n2 = get_gex_val(n2, 'gex_put')
-    gex_a1 = get_gex_val(a1, 'abs_gex')
-    gex_a2 = get_gex_val(a2, 'abs_gex')
-    gex_p1 = get_gex_val(p1, 'gex_call')
-    gex_p2 = get_gex_val(p2, 'gex_call')
+    gex_n1 = get_val(n1, 'gex_put')
+    gex_n2 = get_val(n2, 'gex_put')
+    gex_a1 = get_val(a1, 'abs_gex')
+    gex_a2 = get_val(a2, 'abs_gex')
+    gex_p1 = get_val(p1, 'gex_call')
+    gex_p2 = get_val(p2, 'gex_call')
 
     def get_pct(target):
         diff = ((target - spot_price) / spot_price) * 100
@@ -316,7 +316,7 @@ def generate_gamma_chart():
                             <div class="key-row"><span class="key-label" style="color:#22c55e;"><span style="background:#22c55e; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">MS</span> Max Stability</span><b style="color:#22c55e;">${ms:,.0f}</b></div>
                             <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">MV</span> Max Volatility</span><b style="color:#ef4444;">${mv:,.0f}</b></div>
                             <div class="key-row"><span class="key-label" style="color:#22c55e;"><span style="background:#22c55e; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">P1</span> Positive Peak</span><b style="color:#22c55e;">${p1:,.0f}</b></div>
-                            <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">N1</span> Negative Peak</span><b style="color:#ef4444;">${n1:,.0f}</b></div>
+                            <div class="key-row"><span class="key-label" style="color:#ef4444;"><span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:3px; font-size:10px;">N1</span> Negative Peak</span><b style="color:#ef4444;">${n1:,.0f}</b></div>
                             <div class="key-row"><span class="key-label" style="color:#a855f7;"><span style="background:#a855f7; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px;">A1</span> Absolute Max</span><b style="color:#a855f7;">${a1:,.0f}</b></div>
                         </div>
                     </div>
@@ -385,19 +385,19 @@ def generate_gamma_chart():
                 <div class="badge-card">
                     <div class="card-top"><span class="card-tag" style="background:#ef4444;">N2</span><span class="pct-tag">{get_pct(n2)}</span></div>
                     <div class="card-price" style="color:#ef4444;">${n2:,.0f}</div>
-                    <div class="card-gex">{gex_n2:.1f}M</div>
+                    <div class="card-gex">{v_n2:.1f}M</div>
                     <div class="card-sub">Vol. Trigger</div>
                 </div>
                 <div class="badge-card">
                     <div class="card-top"><span class="card-tag" style="background:#ef4444;">N1</span><span class="pct-tag">{get_pct(n1)}</span></div>
                     <div class="card-price" style="color:#ef4444;">${n1:,.0f}</div>
-                    <div class="card-gex">{gex_n1:.1f}M</div>
+                    <div class="card-gex">{v_n1:.1f}M</div>
                     <div class="card-sub">Vol. Trigger</div>
                 </div>
                 <div class="badge-card">
                     <div class="card-top"><span class="card-tag" style="background:#a855f7;">A1</span><span class="pct-tag">{get_pct(a1)}</span></div>
                     <div class="card-price" style="color:#a855f7;">${a1:,.0f}</div>
-                    <div class="card-gex">{gex_a1:.1f}M</div>
+                    <div class="card-gex">{v_a1:.1f}M</div>
                     <div class="card-sub">Magnet</div>
                 </div>
                 <div class="badge-card">
@@ -409,19 +409,19 @@ def generate_gamma_chart():
                 <div class="badge-card">
                     <div class="card-top"><span class="card-tag" style="background:#a855f7;">A2</span><span class="pct-tag">{get_pct(a2)}</span></div>
                     <div class="card-price" style="color:#a855f7;">${a2:,.0f}</div>
-                    <div class="card-gex">{gex_a2:.1f}M</div>
+                    <div class="card-gex">{v_a2:.1f}M</div>
                     <div class="card-sub">Magnet</div>
                 </div>
                 <div class="badge-card">
                     <div class="card-top"><span class="card-tag" style="background:#22c55e;">P1</span><span class="pct-tag">{get_pct(p1)}</span></div>
                     <div class="card-price" style="color:#22c55e;">${p1:,.0f}</div>
-                    <div class="card-gex">{gex_p1:.1f}M</div>
+                    <div class="card-gex">{v_p1:.1f}M</div>
                     <div class="card-sub">Gamma Resist.</div>
                 </div>
                 <div class="badge-card">
                     <div class="card-top"><span class="card-tag" style="background:#22c55e;">P2</span><span class="pct-tag">{get_pct(p2)}</span></div>
                     <div class="card-price" style="color:#22c55e;">${p2:,.0f}</div>
-                    <div class="card-gex">{gex_p2:.1f}M</div>
+                    <div class="card-gex">{v_p2:.1f}M</div>
                     <div class="card-sub">Gamma Resist.</div>
                 </div>
                 <div class="badge-card">
